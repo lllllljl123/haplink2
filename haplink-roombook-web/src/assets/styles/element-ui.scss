@@ -1,0 +1,231 @@
+// cover some element-ui styles
+
+.el-breadcrumb__inner,
+.el-breadcrumb__inner a {
+  font-weight: 400 !important;
+}
+
+.el-upload {
+  input[type="file"] {
+    display: none !important;
+  }
+}
+
+.el-upload__input {
+  display: none;
+}
+
+.cell {
+  .el-tag {
+    margin-right: 0px;
+  }
+}
+
+.small-padding {
+  .cell {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+}
+
+.fixed-width {
+  .el-button--mini {
+    padding: 7px 10px;
+    width: 60px;
+  }
+}
+
+.status-col {
+  .cell {
+    padding: 0 10px;
+    text-align: center;
+
+    .el-tag {
+      margin-right: 0px;
+    }
+  }
+}
+
+// to fixed https://github.com/ElemeFE/element/issues/2461
+.el-dialog {
+  transform: none;
+  left: 0;
+  position: relative;
+  margin: 0 auto;
+}
+
+// refine element ui upload
+.upload-container {
+  .el-upload {
+    width: 100%;
+
+    .el-upload-dragger {
+      width: 100%;
+      height: 200px;
+    }
+  }
+}
+
+// dropdown
+.el-dropdown-menu {
+  a {
+    display: block
+  }
+}
+
+// fix date-picker ui bug in filter-item
+.el-range-editor.el-input__inner {
+  display: inline-flex !important;
+}
+
+// to fix el-date-picker css style
+.el-range-separator {
+  box-sizing: content-box;
+}
+
+.el-menu--collapse
+  > div
+  > .el-submenu
+  > .el-submenu__title
+  .el-submenu__icon-arrow {
+  display: none;
+}
+
+// UI
+.el-button--primary{
+  background: #3060BA;
+}
+
+.el-button--default{
+  border-color: #5e8cd5;
+  color: #5E8CD5;
+}
+
+
+
+.el-table::before, .el-table--group::after, .el-table--border::after {
+  background-color: transparent;
+}
+
+.el-table .el-table__header-wrapper th, .el-table .el-table__fixed-header-wrapper th {
+  background-color: #EBF0F9 !important;
+  color: #3060BA !important;
+}
+
+.el-pagination.is-background .el-pager li:not(.disabled).active {
+  background-color: #3060BA;
+}
+
+.el-pagination.is-background .btn-prev {
+  background-color: transparent;
+}
+
+.el-pagination.is-background .btn-next {
+  background-color: transparent;
+}
+
+// 使用组件stripe属性也可以,但是 UI
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: #f8f8f9;
+}
+
+.el-table--border{
+  border: 0;
+}
+
+// 没有边框的表格
+.no-border {
+  th.el-table__cell.is-leaf, td.el-table__cell {
+    border-bottom: 0;
+  }
+}
+
+// body部分有边框的表格
+.body-border{
+  .el-table__header-wrapper{
+    th.el-table__cell.is-leaf, .el-table td.el-table__cell{
+      border-bottom: 0;
+      border-right: 0 ;
+    }
+  }
+  .el-table__body-wrapper{
+    tbody{
+      .el-table__cell.is-leaf, td.el-table__cell{
+        border-bottom: 1px solid #eff1f6;
+        //border-bottom: 1px solid rgba(223, 230, 236,.3);
+        border-left: 1px solid #eff1f6;
+        //border-left: 1px solid rgba(223, 230, 236,.3);
+        border-right: 0 ;
+        &:last-child{
+          border-right: 1px solid #eff1f6;
+          //border-right: 1px solid rgba(223, 230, 236,.3);
+        }
+      }
+    }
+  }
+}
+
+// 表格thead文字样式
+thead .el-table__cell .cell{
+  font-family: var(--fontMedium);
+  font-weight: 500;
+  font-size: 16px;
+  color: #3060BA;
+}
+
+// 表格body文字样式
+tbody .el-table__cell .cell{
+  font-family: var(--fontRegular);
+  font-weight: 400;
+  font-size: 12px;
+  color: #455969;
+}
+
+// 弹框
+.el-dialog__header {
+  border-bottom: 1px solid #D2DBEC;
+  padding: 0;
+  height: 40px;
+  line-height: 40px;
+}
+
+.el-dialog__footer {
+  border-top: 1px solid #D2DBEC;
+  padding: 0;
+  height: 56px;
+}
+
+// dialog关闭图标样式
+.el-dialog__headerbtn{
+  top: 20px;
+  right: 24px;
+  transform: translateY(-50%);
+}
+
+// 自定义 dialogtitle 区域样式
+.dialog-title{
+  font-family: var(--fontRegular);
+  font-weight: 400;
+  font-size: 20px;
+  color: #4E5969;
+  line-height: 40px;
+  i{
+    color: #5E8CD5;
+    font-size: 13px;
+    padding-right: 10px;
+    padding-left: 24px;
+    vertical-align: middle;
+    line-height: 40px;
+  }
+}
+
+// 自定义 dialogfootder 区域样式
+.dialog-footer{
+  line-height: 56px;
+  padding-right: 35px;
+}
+
+// 使用单选功能的表格样式-->选中的表格行
+.el-table__body tr.current-row > td.el-table__cell{
+  background-color: #ccdffb;
+}
