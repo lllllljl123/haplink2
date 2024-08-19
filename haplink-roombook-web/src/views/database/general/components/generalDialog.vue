@@ -1,5 +1,5 @@
 <template>
-  <el-dialog :title="title" :visible.sync="generalDialogVisible" :before-close="cancel">
+  <el-dialog  :visible.sync="generalDialogVisible" :before-close="cancel">
     <div class="dialog-title" slot="title">
       <i class="el-icon-circle-check"></i>{{ generalDialogTitle }}
     </div>
@@ -68,48 +68,184 @@
 </template>
 
 <script>
+import { getItemByOrgId } from '@/api/database/general'
+
 export default {
+  name:"generalDialog",
   props: {
-    generalDialogVisible: Boolean,
-    generalDialogTitle: String,
-    generalLeftSearch: String,
-    generalRightSearch: String,
-    generalLeftTable: Array,
-    selectedCountLeft: Number,
-    totalCountLeft: Number,
-    filteredGeneralRightTable: Array,
-    selectedCountRight: Number,
-    totalCountRight: Number,
+    generalLeftTable:[],
+    generalRightTable:[],
+    filteredGeneralRightTable:[],
+    generalDialogTitle: '',
+    generalLeftSearch: '',
+    generalRightSearch: '',
+    generalDialogVisible: false,
   },
+
+  computed:{
+    selectedCountLeft() {
+      return this.generalLeftTable.filter(item => item.selected).length;
+    },
+    totalCountLeft() {
+      return this.generalLeftTable.length;
+    },
+    selectedCountRight() {
+      return this.filteredGeneralRightTable.filter(item => item.selected).length;
+    },
+    totalCountRight() {
+      return this.filteredGeneralRightTable.length;
+    },
+    dialogTitle() {
+      return this.dialogMode;
+    },
+  },
+
   methods: {
+
+    //获得当前组织架构id
+    getCurrentOrgId() {
+      const parentTab = this.tabs.find(t => t.id.toString() === this.activeTab);
+      const subTab = parentTab.subset.find(sub => sub.name === this.activeSubTab);
+      return subTab.id;
+    },
+
+    //通用dialog左表格的清空条件
     clearFilters2() {
-      this.$emit('clear-filters-2');
+      this.generalLeftSearch = '';
+      this.handleGetItemByOrgId();
     },
+
     handleGetItemByOrgId() {
-      this.$emit('get-item-by-org-id');
+      const params = {
+        orgId: this.getCurrentOrgId(),
+        search: this.generalLeftSearch
+      };
+
+      console.log("params",params)
+
+      getItemByOrgId(params)
+        .then(response => {
+          if (response.code === 200) {
+            this.generalLeftTable = response.rows;
+            this.updateLeftTableSelection();
+          } else {
+            this.$message.error('获取数据失败');
+          }
+        })
+        .catch(error => {
+          console.error('请求失败:', error);
+          this.$message.error('请求失败');
+        });
     },
+    //通用框中将通用层数据复制给预选框
     handleCopy2() {
-      this.$emit('copy-2');
+      const selectedItems = this.generalLeftTable.filter(item => item.selected);
+
+      selectedItems.forEach(item => {
+        const alreadyInRightTable = this.generalRightTable.some(rightItem => {
+          return rightItem.content === item.content && rightItem.thickness === item.thickness;
+        });
+
+        if (!alreadyInRightTable) {
+          this.generalRightTable.push({
+            ...item,
+            id: Date.now() + Math.random(),  // 确保新添加的行有唯一的ID
+          });
+        }
+
+        // 将左表的该项设为不可选择
+        item.disabled = true;
+        item.selected = false; // 清除选中状态
+      });
+
+      this.filteredGeneralRightTable = [...this.generalRightTable];
+
+      // 清除右表格中项的选中状态
+      this.generalRightTable.forEach(item => {
+        item.selected = false;
+      });
+
+      // 更新左表格中的选项状态
+      this.updateLeftTableSelection();
     },
+
+    //清空右表格搜索关键字
     clearFilters3() {
-      this.$emit('clear-filters-3');
+      this.generalRightSearch = '';
+      this.filteredGeneralRightTable = [...this.generalRightTable]; // 恢复原始数据
+      this.$forceUpdate();
     },
+
+    //通用右表格搜索
     searchRightTable() {
-      this.$emit('search-right-table');
+      const keyword = this.generalRightSearch.trim().toLowerCase(); // 获取搜索关键词并转为小写
+      if (keyword) {
+        this.filteredGeneralRightTable = this.generalRightTable.filter(item => {
+          // 根据关键词匹配内容和厚度
+          return item.content.toLowerCase().includes(keyword) || item.thickness.toString().includes(keyword);
+        });
+      } else {
+        this.filteredGeneralRightTable = [...this.generalRightTable]; // 如果没有关键词，显示所有数据
+      }
     },
+
+    //删除右表格选中数据
     handleDeleteSelected() {
-      this.$emit('delete-selected');
+      this.generalRightTable = this.generalRightTable.filter(item => !item.selected);
+      this.filteredGeneralRightTable = [...this.generalRightTable];      // 同步 filteredGeneralRightTable
+      this.updateLeftTableSelection();
     },
+
+    //通用确认提交
     handleGeneralSubmit() {
-      this.$emit('general-submit');
+      const params = {
+        orgId: this.currentOrgId,
+        libraries: this.filteredGeneralRightTable.map(item => ({
+          content: item.content,
+          thickness: item.thickness
+        }))
+      };
+      batchInsert(params)
+        .then(response => {
+          if (response.code === 200) {
+            this.$message.success('新增成功');
+
+            // 在提交成功后，遍历 filteredGeneralRightTable 赋值 editMode
+            this.filteredGeneralRightTable.forEach(item => {
+              item.editMode = '编辑母版'; // 此处条件检查逻辑是否正确
+              console.log("Updated item:", item);
+            });
+
+            this.fetchSubTabData(this.getCurrentOrgId());  // 刷新数据
+
+            // 清空右表格
+            this.generalRightTable = [];
+            this.filteredGeneralRightTable = [];
+
+            this.generalLeftTable = [];
+
+            this.generalDialogVisible = false;
+          } else {
+            this.$message.error('新增失败: ' + response.message);
+          }
+        });
     },
+
     cancel() {
-      this.$emit('cancel');
+      this.generalDialogVisible = false;
     },
-    handleGeneralDialogClose(){
-      this.$emit('handle-General-Dialog-Close');
+
+    //用右上角×关闭通用dialog
+    handleGeneralDialogClose(done) {
+      this.generalRightTable = [];
+      this.filteredGeneralRightTable = [];
+      this.generalLeftTable = [];
+      this.handleGetItemByOrgId();
+      this.generalDialogVisible = false;
+      done();
     },
-    selectableFn(row){
+
+    selectableFn(row) {
       return !row.disable
     },
   },
@@ -122,24 +258,25 @@ export default {
   height: 750px;
 }
 
-::v-deep .el-dialog__body{
-  padding:0px;
+::v-deep .el-dialog__body {
+  padding: 0px;
 }
 
-::v-deep .el-table__body tr.choose-item td.el-table__cell{
+::v-deep .el-table__body tr.choose-item td.el-table__cell {
   background-color: #ccdffb !important;
 }
-::v-deep .el-table__body tr.disable-item td.el-table__cell div{
+
+::v-deep .el-table__body tr.disable-item td.el-table__cell div {
   color: #D2DBEC !important;
 }
 
 
-.generalBox{
-  margin-top:11px;
-  margin-left:25px;
+.generalBox {
+  margin-top: 11px;
+  margin-left: 25px;
   display: flex;
   justify-content: space-between;
-  height:643px;
+  height: 643px;
   align-items: center;
 
   ::v-deep .el-button {
@@ -147,8 +284,8 @@ export default {
     padding-left: 0;
   }
 
-  .generalLeft{
-    width:517px;
+  .generalLeft {
+    width: 517px;
   }
 
   .ol {
@@ -158,7 +295,7 @@ export default {
     overflow: hidden;
   }
 
-  .table-footer1{
+  .table-footer1 {
     //height: 34px;
     height: 8%;
     border-top: 1px solid #D2DBEC;
@@ -166,26 +303,30 @@ export default {
     font-weight: 400;
     font-size: 13px;
     color: #8B8B8B;
-    span{
+
+    span {
       padding-left: 16px;
     }
   }
 
-  .table-footer2{
+  .table-footer2 {
     //height: 40px;
     height: 9%;
     border-top: 1px solid #D2DBEC;
     padding: 0 20px 0 8px;
-    &-left{
+
+    &-left {
       font-family: var(--fontRegular);
       font-weight: 400;
       font-size: 13px;
       color: #8B8B8B;
-      span{
+
+      span {
         padding-left: 16px;
       }
     }
-    &-right{
+
+    &-right {
       font-family: var(--fontRegular);
       font-weight: 400;
       font-size: 14px;
@@ -226,8 +367,8 @@ export default {
     }
   }
 
-  .generalRight{
-    width:520px;
+  .generalRight {
+    width: 520px;
   }
 }
 

@@ -1,4 +1,3 @@
-<!--TODO:通用按钮的格式-->
 <template>
   <div class="database">
     <div class="tabs-container1">
@@ -33,142 +32,182 @@
         </el-tabs>
       </div>
     </div>
-
-
-    <div class="bottom card">
-      <el-col :xs="24">
-        <div style="color: #3060ba">当前层级：{{ currentPath }}</div>
-        <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" label-width="68px">
-          <el-form-item label="内容">
-            <el-input
-              v-model="queryParams.content"
-              placeholder="请输入内容"
-              clearable
-              style="width: 180px"
-              @keyup.enter.native="handleQuery"
-            />
-          </el-form-item>
-          <el-form-item label="最近修改时间" label-width="100px">
-            <el-date-picker
-              v-model="dateRange"
-              style="width: 180px"
-              value-format="yyyy-MM-dd"
-              type="daterange"
-              range-separator="-"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-            ></el-date-picker>
-          </el-form-item>
-          <el-form-item>
-            <el-button class="search-btn" type="primary" size="mini" @click="handleQuery">搜索</el-button>
-            <el-button size="mini" @click="resetQuery">清空条件</el-button>
-          </el-form-item>
-        </el-form>
-        <el-row :gutter="10" class="mb8">
-          <el-col :span="1.5">
-            <el-button
-              type="primary"
-              icon="el-icon-document-add"
-              size="mini"
-              @click="handleAdd"
-              v-hasPermi="['system:user:add']"
-            >新增</el-button>
-          </el-col>
-          <el-col :span="1.5">
-            <el-button
-              type="danger"
-              plain
-              icon="el-icon-delete"
-              size="mini"
-              @click="showBatchDeleteConfirm"
-              v-hasPermi="['system:user:remove']"
-            >批量删除</el-button>
-            <el-button
-              v-if="showGeneralButton[activeSubTab]"
-              type="primary"
-              plain
-              icon="el-icon-folder-add"
-              @click="handleGeneral"
-            >通用</el-button>
-          </el-col>
-        </el-row>
-        <div class="occupy"></div>
-        <el-table stripe class="body-border" :max-height="getTableHeight('card','occupy')" v-loading="loading" :data="filteredList" @selection-change="handleSelectionChange"
+    <div class="tabs-container2">
+      <div class="current-path">
+        当前层级：{{ currentPath }}
+      </div>
+      <el-row>
+        <el-button
+          type="primary"
+          icon="el-icon-folder-add"
+          @click="handleAdd"
+          class="new_button"
+        >新增</el-button>
+        <el-button
+          type="danger"
+          icon="el-icon-delete"
+          size="mini"
+          @click="showBatchDeleteConfirm"
+          class="delete_button"
+        >批量删除</el-button>
+        <el-button
+          v-if="showGeneralButton[activeSubTab]"
+          type="primary"
+          icon="el-icon-folder-add"
+          class="general_button"
+          @click="handleGeneral"
+        >通用</el-button>
+        <el-label class="input">内容</el-label>
+        <el-input
+          v-model="searchContent"
+          placeholder="内容"
+          prefix-icon="el-icon-search"
+          size="mini"
+          class="input_content"
+        ></el-input>
+        <el-label class="modify">修改时间</el-label>
+        <el-date-picker
+          v-model="searchDate"
+          type="daterange"
+          class="last_modified_time"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
         >
-          <el-table-column type="selection" width="50" align="center" />
-          <el-table-column label="序号" align="center" width="50" type="index"/>
-          <el-table-column label="内容" align="left" prop="content" width="532" header-align="left"/>
-          <el-table-column label="结构厚度(mm)" align="center" prop="thickness" width="100" header-align="center"/>
-          <el-table-column label="创建时间" align="center" prop="createTime" width="100"/>
+        </el-date-picker>
+        <el-button size="mini" @click="clearFilters1" class="clear">清空条件</el-button>
+        <el-button type="primary" size="mini" @click="fetchSubTabData(getCurrentOrgId())" class="search">搜索</el-button>
+      </el-row>
+      <div class="table-container">
+        <el-table
+          class="no-border"
+          v-loading="loading"
+          :data="filteredList"
+          row-key="id"
+          height="400"
+        >
+          <el-table-column label="选择" width="50" align="center" header-align="center">
+            <template slot-scope="scope">
+              <el-checkbox v-model="scope.row.selected"></el-checkbox>
+            </template>
+          </el-table-column>
+          <el-table-column label="序号" align="center" width="50" type="index" header-align="center"></el-table-column>
+          <el-table-column label="内容" align="left" prop="content" width="532" header-align="left"></el-table-column>
+          <el-table-column label="结构厚度(mm)" align="center" prop="thickness" width="100" header-align="center"></el-table-column>
+          <el-table-column label="创建时间" align="center" prop="createTime" width="100" header-align="center">
+            <template slot-scope="scope">
+              <span>{{ parseTime(scope.row.createTime) }}</span>
+            </template>
+          </el-table-column>
           <el-table-column label="创建人" align="center" prop="createBy" width="100" header-align="center"></el-table-column>
-          <el-table-column label="最近修改时间" align="center" prop="updateTime" width="100" />
-          <el-table-column label="操作" width="200" class-name="small-padding fixed-width" align="center">
-            <template slot-scope="scope" v-if="scope.row.userId !== 1">
-              <el-button
-                size="mini"
-                type="text"
-                icon="el-icon-edit"
-                @click="handleUpdate(scope.row)"
-              >编辑</el-button>
-              <el-button
-                size="mini"
-                type="text"
-                icon="el-icon-delete"
-                @click="handleDelete(scope.row)"
-              >删除</el-button>
-              <el-button
-                size="mini"
-                type="text"
-                icon="el-icon-document-copy"
-                @click="handleCopy(scope.row)"
-              >复制</el-button>
+          <el-table-column label="最近修改时间" align="center" prop="updateTime" width="100" header-align="center">
+            <template slot-scope="scope">
+              <span>{{ parseTime(scope.row.updateTime) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="200" class="operation" header-align="center">
+            <template slot-scope="scope">
+              <div class="operation-buttons">
+                <el-button
+                  size="mini"
+                  type="text"
+                  icon="el-icon-edit"
+                  @click="handleUpdate(scope.row)"
+                >
+                  {{ scope.row.isGeneralAdded ? '编辑母版' : '编辑' }}
+                </el-button>
+                <el-button
+                  size="mini"
+                  type="text"
+                  icon="el-icon-delete"
+                  @click="handleDelete(scope.row)"
+                >删除</el-button>
+                <el-button
+                  size="mini"
+                  type="text"
+                  icon="el-icon-document-copy"
+                  @click="handleCopy(scope.row)"
+                >复制</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
-      </el-col>
+      </div>
     </div>
-    <pagination
-      class="pagination-container"
-      v-show="total>0"
-      :total="total"
-      :page.sync="queryParams.pageNum"
-      :limit.sync="queryParams.Size"
-      @pagination="fetchSubTabData"
-    >
-    </pagination>
-    <div>
-      <HandleAddDialog
-        :addDialogVisible.sync="addDialogVisible"
-        :title="dialogTitle"
-        @click-Houdu = "clickHoudu"
-        @mouse-up-Txt = "mouseupTxt"
-        @close-Tag = "closeTag"
-        @can-cel = "cancel"
-        @handle-Submit = "handleSubmit"
-      />
+    <div class="pagination-container">
+      <el-pagination
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+        :current-page="currentPage"
+        :page-sizes="[10, 20, 30, 40]"
+        :page-size="pageSize"
+        layout="total, sizes, prev, pager, next, jumper"
+        :total="total"
+      >
+      </el-pagination>
     </div>
-    <div>
-      <GeneralDialog
-        :generalDialogVisible.sync="generalDialogVisible"
-        :generalDialogTitle="generalDialogTitle"
-        :generalLeftSearch="generalLeftSearch"
-        :generalLeftTable="generalLeftTable"
-        :selectedCountLeft="selectedCountLeft"
-        :totalCountLeft="totalCountLeft"
-        :filteredGeneralRightTable="filteredGeneralRightTable"
-        :selectedCountRight="selectedCountRight"
-        :totalCountRight="totalCountRight"
-        @clear-filters-2="clearFilters2"
-        @get-item-by-org-id="handleGetItemByOrgId"
-        @copy-2="handleCopy2"
-        @clear-filters-3="clearFilters3"
-        @search-right-table="searchRightTable"
-        @delete-selected="handleDeleteSelected"
-        @general-submit="handleGeneralSubmit"
-        @cancel="cancel"
-        @handle-General-Dialog-Close="handleGeneralDialogClose"
-      />
-    </div>
+    <el-dialog
+      class="dialog1"
+      :visible.sync="dialogVisible"
+      width="560px"
+      :style="{ height: '456px' }">
+      <template #title>
+        <div class="dialog-title">
+          <span class="custom-dialog-title">{{ dialogTitle }}</span>
+        </div>
+      </template>
+      <el-form ref="form" :model="form" :rules="rules" label-width="100px" class="form-content">
+        <el-row class="row1" style="display: flex; align-items: center;">
+          <div class="type" style="margin-right: 10px;">类别</div>
+          <el-input v-model="form.category" placeholder="选择类别" class="type_chosen" disabled style="margin-right: 20px;"></el-input>
+
+          <div class="depth" style="margin-right: 10px;">结构厚度</div>
+          <el-input v-model="form.thickness" placeholder="输入厚度" clearable class="input-depth">
+            <template slot="append">mm</template>
+          </el-input>
+        </el-row>
+        <el-row class="row2">
+          <el-col span="4">
+            <div class="content">内容</div>
+          </el-col>
+          <el-row>
+            <div class="input-hint">结构厚度建议填写，与结构的荷载计算有关；厚度建议通过“+”按钮添加便于数据联动</div>
+          </el-row>
+          <el-row>
+            <div class="box1">
+              <el-button icon="el-icon-circle-plus" @click="clickHoudu" class="transfer_button"></el-button>
+              <el-input
+                v-show="showTextArea"
+                @blur="mouseupTxt"
+                class="custom-textarea"
+                v-model="form.content"
+                placeholder="填写工程做法详细描述文字，不超过50字"
+                clearable
+              >
+              </el-input>
+              <div v-show="!showTextArea" contenteditable class="edit" style="width: 330px;height: 76px;border: 1px solid #000"></div>
+              <el-tag v-show="showTag" class="tag" closable type="success" @close="closeTag" >
+                {{ form.thickness }}
+              </el-tag>
+            </div>
+          </el-row>
+        </el-row>
+        <el-row>
+          <div class="preview">预览</div>
+        </el-row>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="cancel" class="cancel1">
+          <div class="cancel-word1">取消</div>
+        </el-button>
+        <el-button type="primary" @click="handleSubmit" class="sure1">
+          <div class="sure-word1">
+            {{ isEditing ? '保存' : '确认' }}
+          </div>
+        </el-button>
+      </div>
+    </el-dialog>
+    <GeneralDialog :open="generalDialogVisibleForGeneralDialog" :title="generalDialogTitle" @cancel="generalcancel"></GeneralDialog>
 
     <el-dialog
       title="确认删除"
@@ -185,27 +224,24 @@
 
 <script>
 import { ListTab, ListTable, deleteItem, insertItem, updateItem, getItemByOrgId, batchInsert} from '@/api/database/general'; // 引入你的接口函数
-import GeneralDialog from '@/views/database/general/components/generalDialog.vue';
-import HandleAddDialog from '@/views/database/general/components/handleAdd.vue';
-import {getTableHeight} from "@/utils";
+
+const GeneralDialog = () => import("./components/generalDialog.vue")
 
 export default {
   components: {
     GeneralDialog,
-    HandleAddDialog,
   },
   data() {
     return {
       showTextArea: true,
       showTag: false,
       position: {},
-      dateRange:[],
       thickness: "",
       content: "",
       activeTab: '1',
       activeSubTab: '8',
-      dialogTitle:'新增',
-      addDialogVisible: false,
+      dialogMode:'新增',
+      dialogVisible: false,
       selectedRow: null,
       selectedCategory: '',
       currentPath: '',
@@ -214,45 +250,35 @@ export default {
       generalRightTable:[],
       filteredGeneralRightTable:[],
       showGeneralButton: {},
-      queryParams:{
-        pageNum: 1,
-        pageSize: 10,
+      form: {
+        category: '',
+        categoryId: null,
+        thickness: '',
+        content: '',
+        isGeneralAdded:false,
       },
-
+      rules: {
+        content: [{ required: true, message: '请输入内容', trigger: 'blur' }],
+        thickness: [{ required: true, message: '请输入厚度', trigger: 'blur' }]
+      },
       loading: false,
       deptList: [],
       tabs: [], // 存放从接口获取的数据
       subTabs: [], // 存放当前选中tab的子tab
+      currentPage: 1,
+      pageSize: 10,
       total: 0,
       searchContent: '',
       searchDate: [],
       publishStatus: '',
       batchDeleteDialogVisible: false, // 控制批量删除确认对话框的显示
-      generalDialogVisible: false,
+      generalDialogVisibleForGeneralDialog: false,
       generalDialogTitle: '',
       generalLeftSearch: '',
       generalRightSearch: '',
     };
   },
-  computed: {
-    selectedCountLeft() {
-      return this.generalLeftTable.filter(item => item.selected).length;
-    },
-    totalCountLeft() {
-      return this.generalLeftTable.length;
-    },
-    selectedCountRight() {
-      return this.filteredGeneralRightTable.filter(item => item.selected).length;
-    },
-    totalCountRight() {
-      return this.filteredGeneralRightTable.length;
-    },
-    dialogTitle() {
-      return this.dialogMode;
-    },
-  },
   methods: {
-    getTableHeight,
     // 调整组织架构列表高度
     updateContainerHeight(index) {
       this.$nextTick(() => {
@@ -313,7 +339,7 @@ export default {
         this.currentPath = selectedTab.name + (this.activeSubTab ? ' > ' + this.activeSubTab : '');
 
         if (this.subTabs.length > 0) {
-          this.fetchSubTabData();
+          this.fetchSubTabData(this.getCurrentOrgId());
         } else {
           this.filteredList = [];
           this.total = 0;
@@ -333,8 +359,11 @@ export default {
 
       if (parentTab) {
         this.currentPath = parentTab.name + ' > ' + tab.label;
-        this.fetchSubTabData();
+        const orgTab = parentTab.subset.find(subTab => subTab.name === tab.name);
 
+        if (orgTab) {
+          this.fetchSubTabData(orgTab.id);
+        }
       } else {
         console.error("parentTab not found");
       }
@@ -350,22 +379,23 @@ export default {
     },
 
     //通过组织架构id获得列表数据
-    fetchSubTabData() {
+    fetchSubTabData(orgId) {
       this.loading = true;
-      this.queryParams.orgId = this.getCurrentOrgId();
-      this.queryParams.matchStatus = 'required';
-      this.queryParams.materialsId = undefined;
-      this.queryParams.parentId = undefined;
-      if(this.dateRange[0]){
-        this.queryParams.startTime = this.dateRange[0]
-        this.queryParams.endTime = this.dateRange[1]
-      } else {
-        this.queryParams.startTime = ""
-        this.queryParams.endTime = ""
-      }
-      console.log('Fetching data with params:', this.queryParams);
+      const params = {
+        orgId: orgId,
+        matchStatus: 'required',
+        content: this.searchContent,
+        startTime: this.parseTime(this.searchDate[0]) || undefined,
+        endTime: this.parseTime(this.searchDate[1]) || undefined,
+        pageNum: this.currentPage,
+        pageSize: this.pageSize,
+        materialsId: undefined,
+        parentId: undefined
+      };
 
-      ListTable(this.queryParams)
+      console.log('Fetching data with params:', params);
+
+      ListTable(params)
         .then(response => {
           console.log('API response:', response);
           if (response.code === 200) {
@@ -375,7 +405,7 @@ export default {
               editMode: item.editMode || '编辑'
             })).sort((a, b) => a.id - b.id);
             this.total = response.total;
-            if (this.generalDialogVisible) {
+            if (this.generalDialogVisibleForGeneralDialog) {
               this.generalLeftTable = response.rows; // 如果通用弹窗已打开，将数据赋值到generalLeftTable
             }
           } else {
@@ -399,19 +429,17 @@ export default {
       this.fetchSubTabData(this.getCurrentOrgId());  // 调用 API 获取新的数据
     },
 
-    handleSelectionChange(selection) {
-      this.ids = selection.map(item => item.id);
-      this.single = selection.length != 1;
-      this.multiple = !selection.length;
+    //获取dialog标题
+    setDialogMode(mode) {
+      this.dialogMode = mode;
     },
 
     //点击新增按钮
     handleAdd() {
       this.resetForm();
-      this.addDialogVisible = true;
-      console.log("addDialogVisible:",this.addDialogVisible)
+      this.dialogVisible = true;
       this.form.category = this.activeSubTab;
-      this.dialogTitle = "新增";
+      this.setDialogMode('新增');
       this.form.isGeneralAdded = false;
 
       const parentTab = this.tabs.find(t => t.id.toString() === this.activeTab);
@@ -428,8 +456,8 @@ export default {
       console.log("Handle Update", row);
       this.selectedRow = row;
       this.form = { ...row };
-      this.addDialogVisible = true;
-      this.dialogTitle = "编辑";
+      this.dialogVisible = true;
+      this.setDialogMode('编辑');
       this.form.category = this.activeSubTab;
 
       const parentTab = this.tabs.find(t => t.id.toString() === this.activeTab);
@@ -445,8 +473,8 @@ export default {
     handleCopy(row) {
       this.selectedRow = row;
       this.form = { ...row };
-      this.addDialogVisible = true;
-      this.dialogTitle = "复制";
+      this.dialogVisible = true;
+      this.setDialogMode('复制');
       this.form.category = this.activeSubTab;
 
       const parentTab = this.tabs.find(t => t.id.toString() === this.activeTab);
@@ -515,16 +543,12 @@ export default {
         });
     },
 
-    handleQuery(){
-      this.queryParams.pageNum = 1;
-      this.fetchSubTabData();
-    },
-
     //主页的清空条件
-    resetQuery() {
-      this.queryParams.content = "";
-      this.dateRange = [];
-      this.fetchSubTabData(); // 重置过滤条件并刷新数据
+    clearFilters1() {
+      this.searchContent = '';
+      this.searchDate = [];
+      this.publishStatus = '';
+      this.fetchSubTabData(this.getCurrentOrgId()); // 重置过滤条件并刷新数据
     },
 
     //判断批量删除时是否有勾选
@@ -616,7 +640,7 @@ export default {
       }
 
       this.generalDialogTitle = this.getGeneralTitle();
-      this.generalDialogVisible = true;
+      this.generalDialogVisibleForGeneralDialog = true;
     },
 
     //判断通用按钮是否出现
@@ -660,137 +684,14 @@ export default {
       });
     },
 
-    //通用dialog左表格的清空条件
-    clearFilters2() {
-      this.generalLeftSearch = '';
-      this.handleGetItemByOrgId();
-    },
 
-    //通用框中将通用层数据复制给预选框
-    handleCopy2() {
-      const selectedItems = this.generalLeftTable.filter(item => item.selected);
 
-      selectedItems.forEach(item => {
-        const alreadyInRightTable = this.generalRightTable.some(rightItem => {
-          return rightItem.content === item.content && rightItem.thickness === item.thickness;
-        });
 
-        if (!alreadyInRightTable) {
-          this.generalRightTable.push({
-            ...item,
-            id: Date.now() + Math.random(),  // 确保新添加的行有唯一的ID
-          });
-        }
 
-        // 将左表的该项设为不可选择
-        item.disabled = true;
-        item.selected = false; // 清除选中状态
-      });
 
-      this.filteredGeneralRightTable = [...this.generalRightTable];
 
-      // 清除右表格中项的选中状态
-      this.generalRightTable.forEach(item => {
-        item.selected = false;
-      });
 
-      // 更新左表格中的选项状态
-      this.updateLeftTableSelection();
-    },
 
-    //通用dialog左表格数据
-    handleGetItemByOrgId() {
-      const params = {
-        orgId: this.currentOrgId,
-        search: this.generalLeftSearch
-      };
-
-      getItemByOrgId(params)
-        .then(response => {
-          if (response.code === 200) {
-            this.generalLeftTable = response.rows;
-            this.updateLeftTableSelection();
-          } else {
-            this.$message.error('获取数据失败');
-          }
-        })
-        .catch(error => {
-          console.error('请求失败:', error);
-          this.$message.error('请求失败');
-        });
-    },
-
-    //通用右表格搜索
-    searchRightTable() {
-      const keyword = this.generalRightSearch.trim().toLowerCase(); // 获取搜索关键词并转为小写
-      if (keyword) {
-        this.filteredGeneralRightTable = this.generalRightTable.filter(item => {
-          // 根据关键词匹配内容和厚度
-          return item.content.toLowerCase().includes(keyword) || item.thickness.toString().includes(keyword);
-        });
-      } else {
-        this.filteredGeneralRightTable = [...this.generalRightTable]; // 如果没有关键词，显示所有数据
-      }
-    },
-
-    //清空右表格搜索关键字
-    clearFilters3() {
-      this.generalRightSearch = '';
-      this.filteredGeneralRightTable = [...this.generalRightTable]; // 恢复原始数据
-      this.$forceUpdate();
-    },
-
-    //删除右表格选中数据
-    handleDeleteSelected() {
-      this.generalRightTable = this.generalRightTable.filter(item => !item.selected);
-      this.filteredGeneralRightTable = [...this.generalRightTable];      // 同步 filteredGeneralRightTable
-      this.updateLeftTableSelection();
-    },
-
-    //通用确认提交
-    handleGeneralSubmit() {
-      const params = {
-        orgId: this.currentOrgId,
-        libraries: this.filteredGeneralRightTable.map(item => ({
-          content: item.content,
-          thickness: item.thickness
-        }))
-      };
-      batchInsert(params)
-        .then(response => {
-          if (response.code === 200) {
-            this.$message.success('新增成功');
-
-            // 在提交成功后，遍历 filteredGeneralRightTable 赋值 editMode
-            this.filteredGeneralRightTable.forEach(item => {
-              item.editMode = '编辑母版'; // 此处条件检查逻辑是否正确
-              console.log("Updated item:", item);
-            });
-
-            this.fetchSubTabData(this.getCurrentOrgId());  // 刷新数据
-
-            // 清空右表格
-            this.generalRightTable = [];
-            this.filteredGeneralRightTable = [];
-
-            this.generalLeftTable = [];
-
-            this.generalDialogVisible = false;
-          } else {
-            this.$message.error('新增失败: ' + response.message);
-          }
-        });
-    },
-
-    //用右上角×关闭通用dialog
-    handleGeneralDialogClose(done) {
-      this.generalRightTable = [];
-      this.filteredGeneralRightTable = [];
-      this.generalLeftTable = [];
-      this.handleGetItemByOrgId();
-      this.generalDialogVisible = false;
-      done();
-    },
 
 
     mouseupTxt() {
@@ -860,8 +761,12 @@ export default {
 
     cancel() {
       console.log("Cancel");
-      this.addDialogVisible = false;
+      this.dialogVisible = false;
     },
+
+    generalcancel(){
+      this.generalDialogVisibleForGeneralDialog = false;
+    }
   },
 
   mounted() {
@@ -891,8 +796,8 @@ export default {
   display: flex;
   flex-wrap: wrap; /* 使tab自动换行 */
   padding-left: 32px;
-  padding-bottom:0px;
-  padding-right:80px;
+  padding-bottom: 0px;
+  padding-right: 80px;
 }
 
 .custom-tabs ::v-deep .el-tabs__nav {
@@ -970,6 +875,16 @@ export default {
 }
 
 
+.tabs-container2 {
+  width: 1612px;
+  height: 572px;
+  background: #FFFFFF;
+  border-radius: 6px;
+  margin-top: 12px;
+  margin-left: 24px;
+  border: 1px solid #d0d0d0;
+}
+
 .current-path {
   margin-top: 24px;
   margin-left: 24px;
@@ -984,25 +899,112 @@ export default {
   text-transform: none;
 }
 
-.general_button{
-  width:72px;
-  height:32px;
-  background:#C9952D;
+.new_button {
+  width: 72px;
+  height: 32px;
+  background: #3060BA;
+  border-radius: 4px;
+  margin-top: 16px;
+  margin-left: 24px;
+  font-size: 14px;
+  text-align: center;
+  padding: 0px;
+}
+
+.general_button {
+  width: 72px;
+  height: 32px;
+  background: #C9952D;
   border-radius: 4px;
   margin-top: 16px;
   margin-left: 16px;
   font-size: 14px;
   text-align: center;
-  padding:0px;
+  padding: 0px;
+}
+
+.delete_button {
+  width: 106px;
+  height: 32px;
+  border-radius: 4px;
+  margin-top: 16px;
+  margin-left: 16px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.input {
+  font-size: 13px;
+  margin-top: 16px;
+  margin-left: 584px;
+}
+
+.input_content {
+  width: 180px;
+  height: 32px;
+  background: #FFFFFF;
+  border-radius: 0px;
+  margin-top: 16px;
+  margin-left: 16px;
+  padding: 0px
+}
+
+.modify {
+  font-size: 13px;
+  margin-top: 16px;
+  margin-left: 16px;
+}
+
+.last_modified_time {
+  width: 205px;
+  height: 32px;
+  background: #FFFFFF;
+  border-radius: 0px;
+  margin-top: 16px;
+  margin-left: 16px;
+  padding-left: 2px;
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+
+.clear {
+  width: 80px;
+  height: 32px;
+  border-radius: 4px;
+  border: 1px solid #5E8CD5;
+  margin-top: 16px;
+  margin-left: 16px;
+}
+
+.search {
+  width: 52px;
+  height: 32px;
+  background: #E8EDF5;
+  border-radius: 4px;
+  margin-top: 16px;
+  margin-left: 16px;
+}
+
+.no-border {
+  margin-top: 16px;
+  margin-left: 24px;
+  width: 1564px;
+  border-radius: 0;
+}
+
+.table-container {
+  max-height: 448px;
 }
 
 
-
-
-
-
-
-
+.custom-dialog {
+  width: 560px;
+  height: 456px;
+  background: #FFFFFF;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+}
 
 .custom-dialog .el-dialog__wrapper {
   display: flex;
@@ -1020,28 +1022,28 @@ export default {
 
 .dialog1 >>> .el-dialog__header {
   height: 40px;
-  padding:0px;
+  padding: 0px;
 }
 
 .dialog1 >>> .el-dialog__body {
   height: 360px;
-  padding:0px;
+  padding: 0px;
 }
 
 .dialog1 >>> .dialog-footer {
-  margin-bottom:12px;
-  margin-right:35px;
+  margin-bottom: 12px;
+  margin-right: 35px;
   height: 32px;
-  padding:0px;
+  padding: 0px;
 }
 
 .dialog1 >>> .el-dialog__footer {
   height: 56px;
-  padding:0px;
-  margin:0px;
+  padding: 0px;
+  margin: 0px;
 }
 
-.custom-dialog-title{
+.custom-dialog-title {
   width: 40px;
   height: 24px;
   //font-family: OPlusSans 3.0, OPlusSans 30;
@@ -1052,28 +1054,28 @@ export default {
   text-align: left;
   font-style: normal;
   text-transform: none;
-  margin-top:8px;
-  margin-left:48px;
+  margin-top: 8px;
+  margin-left: 48px;
 }
 
 
-.type{
+.type {
   width: 28px;
   height: 16px;
-  margin-left:36px;
-  margin-top:47px;
+  margin-left: 36px;
+  margin-top: 47px;
 }
 
-.type_chosen{
+.type_chosen {
   width: 137px;
   height: 32px;
-  margin-left:66px;
-  margin-top:39px;
+  margin-left: 66px;
+  margin-top: 39px;
   background: #FFFFFF;
   border-radius: 0px 0px 0px 0px;
 }
 
-.depth{
+.depth {
   width: 56px;
   height: 16px;
   //font-family: OPlusSans 3.0, OPlusSans 30;
@@ -1084,27 +1086,27 @@ export default {
   text-align: left;
   font-style: normal;
   text-transform: none;
-  margin-top:47px;
-  margin-left:32px;
+  margin-top: 47px;
+  margin-left: 32px;
 }
 
-.input-depth{
+.input-depth {
   width: 123px;
   height: 32px;
   border-radius: 0px 0px 0px 0px;
-  padding:0px;
-  margin-top:39px;
-  margin-left:38px;
+  padding: 0px;
+  margin-top: 39px;
+  margin-left: 38px;
 }
 
-.content{
-  width:28px;
-  height:16px;
-  margin-left:36px;
-  margin-top:32px;
+.content {
+  width: 28px;
+  height: 16px;
+  margin-left: 36px;
+  margin-top: 32px;
 }
 
-.input-hint{
+.input-hint {
   width: 374px;
   height: 12px;
   //font-family: OPlusSans 3.0, OPlusSans 30;
@@ -1115,42 +1117,42 @@ export default {
   text-align: left;
   font-style: normal;
   text-transform: none;
-  margin-left:130px;
-  margin-top:20px;
+  margin-left: 130px;
+  margin-top: 20px;
 }
 
-.box1{
-  width:350px;
-  height:117px;
+.box1 {
+  width: 350px;
+  height: 117px;
   background: #FFFFFF;
   border-radius: 4px 4px 4px 4px;
   border: 1px solid #D2DBEC;
-  margin-left:130px;
-  margin-top:4px;
+  margin-left: 130px;
+  margin-top: 4px;
 }
 
-.transfer_button{
-  width:12px;
-  height:12px;
-  padding:0px;
-  border:0px;
-  margin-left:15px;
-  margin-top:4px;
+.transfer_button {
+  width: 12px;
+  height: 12px;
+  padding: 0px;
+  border: 0px;
+  margin-left: 15px;
+  margin-top: 4px;
 }
 
-.custom-textarea >>>.el-input__inner{
+.custom-textarea >>> .el-input__inner {
   width: 330px;
   height: 76px;
-  margin-left:10px;
-  margin-top:8px;
+  margin-left: 10px;
+  margin-top: 8px;
   padding: 0px;
 }
 
-.preview{
+.preview {
   width: 28px;
   height: 16px;
-  margin-left:36px;
-  margin-top:32px;
+  margin-left: 36px;
+  margin-top: 32px;
 }
 
 .cancel1 {
@@ -1183,10 +1185,10 @@ export default {
   text-align: center;
 }
 
-.tag{
+.tag {
   border-radius: 4px 4px 4px 4px;
   border: 1px solid #5E8CD5;
-  background:#F8F8F9;
+  background: #F8F8F9;
   font-family: PingFang SC, PingFang SC;
   font-weight: 500;
   font-size: 14px;
@@ -1203,9 +1205,9 @@ export default {
 }
 
 .pagination-container {
-  width: calc(100% - 48px);
-  margin: 10px auto;
-  background-color: transparent;
+  text-align: right;
+  margin-bottom: 40px;
+  margin-right: 80px;
 }
 
 </style>
