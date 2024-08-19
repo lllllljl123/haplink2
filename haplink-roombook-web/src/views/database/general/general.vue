@@ -1,5 +1,4 @@
 <!--TODO:通用按钮的格式-->
-
 <template>
   <div class="database">
     <div class="tabs-container1">
@@ -34,11 +33,11 @@
         </el-tabs>
       </div>
     </div>
+
+
     <div class="bottom card">
       <el-col :xs="24">
-        <div class="current-path">
-          当前层级：{{ currentPath }}
-        </div>
+        <div style="color: #3060ba">当前层级：{{ currentPath }}</div>
         <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" label-width="68px">
           <el-form-item label="内容">
             <el-input
@@ -128,18 +127,19 @@
         </el-table>
       </el-col>
     </div>
-      <pagination
-        class="pagination-container"
-        v-show="total>0"
-        :total="total"
-        :page.sync="queryParams.pageNum"
-        :limit.sync="queryParams.Size"
-        @pagination="fetchSubTabData"
-      >
-      </pagination>
+    <pagination
+      class="pagination-container"
+      v-show="total>0"
+      :total="total"
+      :page.sync="queryParams.pageNum"
+      :limit.sync="queryParams.Size"
+      @pagination="fetchSubTabData"
+    >
+    </pagination>
     <div>
       <HandleAddDialog
-        :handleAddvisible.sync="addDialogVisible"
+        :addDialogVisible.sync="addDialogVisible"
+        :title="dialogTitle"
         @click-Houdu = "clickHoudu"
         @mouse-up-Txt = "mouseupTxt"
         @close-Tag = "closeTag"
@@ -186,11 +186,13 @@
 <script>
 import { ListTab, ListTable, deleteItem, insertItem, updateItem, getItemByOrgId, batchInsert} from '@/api/database/general'; // 引入你的接口函数
 import GeneralDialog from '@/views/database/general/components/generalDialog.vue';
+import HandleAddDialog from '@/views/database/general/components/handleAdd.vue';
 import {getTableHeight} from "@/utils";
 
 export default {
   components: {
     GeneralDialog,
+    HandleAddDialog,
   },
   data() {
     return {
@@ -202,7 +204,7 @@ export default {
       content: "",
       activeTab: '1',
       activeSubTab: '8',
-      dialogMode:'新增',
+      dialogTitle:'新增',
       addDialogVisible: false,
       selectedRow: null,
       selectedCategory: '',
@@ -403,17 +405,13 @@ export default {
       this.multiple = !selection.length;
     },
 
-    //获取dialog标题
-    setDialogMode(mode) {
-      this.dialogMode = mode;
-    },
-
     //点击新增按钮
     handleAdd() {
       this.resetForm();
       this.addDialogVisible = true;
+      console.log("addDialogVisible:",this.addDialogVisible)
       this.form.category = this.activeSubTab;
-      this.setDialogMode('新增');
+      this.dialogTitle = "新增";
       this.form.isGeneralAdded = false;
 
       const parentTab = this.tabs.find(t => t.id.toString() === this.activeTab);
@@ -431,7 +429,7 @@ export default {
       this.selectedRow = row;
       this.form = { ...row };
       this.addDialogVisible = true;
-      this.setDialogMode('编辑');
+      this.dialogTitle = "编辑";
       this.form.category = this.activeSubTab;
 
       const parentTab = this.tabs.find(t => t.id.toString() === this.activeTab);
@@ -448,7 +446,7 @@ export default {
       this.selectedRow = row;
       this.form = { ...row };
       this.addDialogVisible = true;
-      this.setDialogMode('复制');
+      this.dialogTitle = "复制";
       this.form.category = this.activeSubTab;
 
       const parentTab = this.tabs.find(t => t.id.toString() === this.activeTab);

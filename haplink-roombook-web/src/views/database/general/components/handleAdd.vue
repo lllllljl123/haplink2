@@ -1,9 +1,9 @@
 <template>
   <el-dialog :title="title" :visible.sync="addDialogVisible">
     <div class="dialog-title" slot="title">
-      <i class="el-icon-document-add"></i>{{dialogTitle}}
+      <i class="el-icon-document-add"></i>{{title}}
     </div>
-    <el-form ref="form" :model="form" :rules="rules" label-width="100px" class="form-content">
+    <el-form ref="form" :model="form" :rules="rules">
       <el-row class="row1" style="display: flex; align-items: center;">
         <div class="type" style="margin-right: 10px;">类别</div>
         <el-input v-model="form.category" placeholder="选择类别" class="type_chosen" disabled style="margin-right: 20px;"></el-input>
@@ -77,8 +77,11 @@ export default {
   },
 
   props: {
-    dialogVisible: Boolean,
-    dialogTitle:String,
+    addDialogVisible: Boolean,
+    title:{
+      type:String,
+      default:"新增"
+    }
   },
   methods: {
     clickHoudu(){
