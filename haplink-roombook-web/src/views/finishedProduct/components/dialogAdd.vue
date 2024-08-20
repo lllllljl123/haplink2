@@ -483,6 +483,7 @@ export default {
       padding-left: 16px;
     }
   }
+
   .action-box1{
     //height: 40px;
     height: 9%;

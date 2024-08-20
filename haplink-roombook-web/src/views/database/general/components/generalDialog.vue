@@ -1,5 +1,5 @@
 <template>
-  <el-dialog  :visible.sync="generalDialogVisible" :before-close="cancel">
+  <el-dialog :visible.sync="generalDialogVisible" :before-close="cancel">
     <div class="dialog-title" slot="title">
       <i class="el-icon-circle-check"></i>{{ generalDialogTitle }}
     </div>
@@ -14,18 +14,18 @@
             prefix-icon="el-icon-search"
             size="small"
           ></el-input>
-          <el-button style="width: 18%; margin: 0 2%" size="mini" @click="clearFilters2">清空条件</el-button>
+          <el-button style="width: 18%; margin: 0 2%" size="mini" @click="clearFilters1">清空条件</el-button>
           <el-button style="width: 13%; margin-left: 0px;" type="primary" size="mini" @click="handleGetItemByOrgId" class="search-btn">搜索</el-button>
         </div>
         <div class="ol">
-          <el-table :data="generalLeftTable" row-key="id" stripe height="92%" highlight-selection-row>
+          <el-table :data="generalLeftTable"  ref="tableRef2" row-key="id" stripe height="92%" highlight-selection-row @selection-change="handleSelectionChange1" >
             <el-table-column type="selection" width="44" align="center" :selectable="selectableFn"/>
             <el-table-column label="序号" type="index" align="center" width="44"/>
             <el-table-column label="构造内容" align="left" width="222" prop="content" :show-overflow-tooltip="true"/>
             <el-table-column label="结构厚度(mm)" align="center" width="100" prop="thickness" :show-overflow-tooltip="true"/>
           </el-table>
-          <div class="table-footer1 flex-left">
-            已选择 {{ selectedCountLeft }} 条，共 {{ totalCountLeft }} 条
+          <div class="action-box flex-left">
+            已选择 {{ selectionSum1 }} 条，共 {{ generalLeftTable.length }} 条
           </div>
         </div>
       </div>
@@ -43,19 +43,19 @@
             size="small"
             style="width: 56%;"
           ></el-input>
-          <el-button style="width: 18%; margin: 0 2%" size="mini" @click="clearFilters3">清空条件</el-button>
+          <el-button style="width: 18%; margin: 0 2%" size="mini" @click="clearFilters2">清空条件</el-button>
           <el-button style="width: 13%; margin-left: 0px;" type="primary" @click="searchRightTable" size="mini" class="search-btn">搜索</el-button>
         </div>
         <div class="ol">
-          <el-table :data="filteredGeneralRightTable" row-key="id">
-            <el-table-column type="selection" width="44" align="center" :selectable="selectableFn"/>
+          <el-table :data="filteredGeneralRightTable" row-key="id"  class="draggable-table" @selection-change="handleSelectionChange2">
+            <el-table-column type="selection" width="44" align="center"/>
             <el-table-column label="序号" type="index" align="center" width="44"/>
             <el-table-column label="构造内容" align="left" width="222" prop="content" :show-overflow-tooltip="true"/>
             <el-table-column label="结构厚度(mm)" align="center" width="100" prop="thickness" :show-overflow-tooltip="true"/>
           </el-table>
-          <div class="table-footer2 flex-jus-between">
-            <div class="table-footer2-left">已选择 {{ selectedCountRight }} 条，共 {{ totalCountRight }} 条</div>
-            <div class="table-footer2-right" @click="handleDeleteSelected">删除</div>
+          <div class="action-box1 flex-jus-between">
+            <div class="action-box1-left">已选择 {{ selectionSum2 }} 条，共 {{ filteredGeneralRightTable.length }} 条</div>
+            <div class="action-box1-right" @click="handleDeleteSelected">删除</div>
           </div>
         </div>
       </div>
@@ -68,65 +68,66 @@
 </template>
 
 <script>
-import { getItemByOrgId } from '@/api/database/general'
+import { batchInsert, getItemByOrgId } from '@/api/database/general'
+import Sortable from 'sortablejs'
 
 export default {
-  name:"generalDialog",
   props: {
-    generalLeftTable:[],
-    generalRightTable:[],
-    filteredGeneralRightTable:[],
-    generalDialogTitle: '',
-    generalLeftSearch: '',
-    generalRightSearch: '',
-    generalDialogVisible: false,
+    generalDialogTitle: String,
+    generalDialogVisible:{
+      type:Boolean,
+      default:false
+    },
+    currentOrgId: {
+      type: Number, // 确保类型与传递的值一致
+      required: true, // 如果 `selectedOrgId` 是必需的，可以添加此选项
+    },
+  },
+  data(){
+    return{
+      generalLeftSearch: "",
+      generalRightSearch: "",
+      generalLeftTable: [],
+      generalRightTable: [],
+      filteredGeneralRightTable: [],
+      selectionList1: [],
+      selectionList2: [],
+      selectionSum1: 0,
+      selectionSum2: 0,
+    }
   },
 
-  computed:{
-    selectedCountLeft() {
-      return this.generalLeftTable.filter(item => item.selected).length;
-    },
-    totalCountLeft() {
-      return this.generalLeftTable.length;
-    },
-    selectedCountRight() {
-      return this.filteredGeneralRightTable.filter(item => item.selected).length;
-    },
-    totalCountRight() {
-      return this.filteredGeneralRightTable.length;
-    },
-    dialogTitle() {
-      return this.dialogMode;
-    },
+  computed: {
+
+  },
+
+  watch: {
+    generalDialogVisible(newVal) {
+      if (newVal) {
+        this.handleGetItemByOrgId();
+      }
+    }
   },
 
   methods: {
-
-    //获得当前组织架构id
-    getCurrentOrgId() {
-      const parentTab = this.tabs.find(t => t.id.toString() === this.activeTab);
-      const subTab = parentTab.subset.find(sub => sub.name === this.activeSubTab);
-      return subTab.id;
+    clearFilters1() {
+      this.generalLeftSearch = ""
+      this.handleGetItemByOrgId()
     },
 
-    //通用dialog左表格的清空条件
-    clearFilters2() {
-      this.generalLeftSearch = '';
-      this.handleGetItemByOrgId();
-    },
-
+    //通用dialog左表格数据
     handleGetItemByOrgId() {
       const params = {
-        orgId: this.getCurrentOrgId(),
+        orgId: this.currentOrgId,
         search: this.generalLeftSearch
       };
 
-      console.log("params",params)
-
       getItemByOrgId(params)
         .then(response => {
+          console.log('API Response:', response); // 检查 API 响应是否正确
           if (response.code === 200) {
             this.generalLeftTable = response.rows;
+            console.log('Updated generalLeftTable:', this.generalLeftTable); // 检查数据是否正确更新
             this.updateLeftTableSelection();
           } else {
             this.$message.error('获取数据失败');
@@ -136,41 +137,63 @@ export default {
           console.error('请求失败:', error);
           this.$message.error('请求失败');
         });
+
     },
-    //通用框中将通用层数据复制给预选框
+
     handleCopy2() {
-      const selectedItems = this.generalLeftTable.filter(item => item.selected);
+      // 使用 selectionList1 中的选中项来处理复制逻辑
+      const selectedItems = this.selectionList1;
 
       selectedItems.forEach(item => {
+        // 检查右表中是否已存在相同的内容和厚度
         const alreadyInRightTable = this.generalRightTable.some(rightItem => {
           return rightItem.content === item.content && rightItem.thickness === item.thickness;
         });
 
         if (!alreadyInRightTable) {
+          // 将新项加入到右表，并生成唯一的ID
           this.generalRightTable.push({
             ...item,
             id: Date.now() + Math.random(),  // 确保新添加的行有唯一的ID
           });
         }
 
-        // 将左表的该项设为不可选择
-        item.disabled = true;
-        item.selected = false; // 清除选中状态
+        // 更新左表的 check 状态
+        item.check = false; // 清除选中状态
       });
 
+      // 更新右表格的显示数据
       this.filteredGeneralRightTable = [...this.generalRightTable];
 
       // 清除右表格中项的选中状态
       this.generalRightTable.forEach(item => {
-        item.selected = false;
+        item.check = false;
       });
 
-      // 更新左表格中的选项状态
+      // 更新左表格中的选项状态（如果需要）
       this.updateLeftTableSelection();
     },
 
-    //清空右表格搜索关键字
-    clearFilters3() {
+    //检查左侧内容是否在右侧出现
+    updateLeftTableSelection() {
+      this.generalLeftTable.forEach(leftItem => {
+        const isInRightTable = this.generalRightTable.some(rightItem => {
+          return rightItem.content === leftItem.content && rightItem.thickness === leftItem.thickness;
+        });
+
+        if (isInRightTable) {
+          this.$set(leftItem, 'disabled', true);
+          this.$set(leftItem, 'selected', true);
+          console.log(`Item '${leftItem.content}' is in right table, set to disabled.`);
+        } else {
+          this.$set(leftItem, 'disabled', false);
+          this.$set(leftItem, 'selected', false);
+          console.log(`Item '${leftItem.content}' is not in right table, set to enabled.`);
+        }
+      });
+    },
+
+    clearFilters2() {
       this.generalRightSearch = '';
       this.filteredGeneralRightTable = [...this.generalRightTable]; // 恢复原始数据
       this.$forceUpdate();
@@ -231,21 +254,25 @@ export default {
         });
     },
 
-    cancel() {
-      this.generalDialogVisible = false;
+    handleSelectionChange1(selection) {
+      this.selectionSum1 = selection.length
+      this.practiceLibrariesList1.forEach(i=>{
+        i.check = false
+      })
+      if(selection.length > 0){
+        selection.forEach(f=>{
+          f.check = true
+        })
+      }
+      this.selectionList1 = selection
     },
 
-    //用右上角×关闭通用dialog
-    handleGeneralDialogClose(done) {
-      this.generalRightTable = [];
-      this.filteredGeneralRightTable = [];
-      this.generalLeftTable = [];
-      this.handleGetItemByOrgId();
-      this.generalDialogVisible = false;
-      done();
+    handleSelectionChange2(selection) {
+      this.selectionSum2 = selection.length
+      this.selectionList2 = selection
     },
-
-    selectableFn(row) {
+    
+    selectableFn(row){
       return !row.disable
     },
   },
@@ -258,25 +285,25 @@ export default {
   height: 750px;
 }
 
-::v-deep .el-dialog__body {
-  padding: 0px;
+::v-deep .el-dialog__body{
+  padding:0px;
 }
 
-::v-deep .el-table__body tr.choose-item td.el-table__cell {
+::v-deep .el-table__body tr.choose-item td.el-table__cell{
   background-color: #ccdffb !important;
 }
-
-::v-deep .el-table__body tr.disable-item td.el-table__cell div {
+::v-deep .el-table__body tr.disable-item td.el-table__cell div{
   color: #D2DBEC !important;
 }
 
 
-.generalBox {
-  margin-top: 11px;
-  margin-left: 25px;
+.generalBox{
+  margin-top:11px;
+  width: 96%;
+  margin-left:25px;
   display: flex;
   justify-content: space-between;
-  height: 643px;
+  height:643px;
   align-items: center;
 
   ::v-deep .el-button {
@@ -284,8 +311,8 @@ export default {
     padding-left: 0;
   }
 
-  .generalLeft {
-    width: 517px;
+  .generalLeft{
+    width:517px;
   }
 
   .ol {
@@ -295,7 +322,7 @@ export default {
     overflow: hidden;
   }
 
-  .table-footer1 {
+  .action-box{
     //height: 34px;
     height: 8%;
     border-top: 1px solid #D2DBEC;
@@ -303,30 +330,25 @@ export default {
     font-weight: 400;
     font-size: 13px;
     color: #8B8B8B;
-
-    span {
+    span{
       padding-left: 16px;
     }
   }
-
-  .table-footer2 {
-    //height: 40px;
-    height: 9%;
+  .action-box1{
+    height: 40px;
+    //height: 9%;
     border-top: 1px solid #D2DBEC;
     padding: 0 20px 0 8px;
-
-    &-left {
+    &-left{
       font-family: var(--fontRegular);
       font-weight: 400;
       font-size: 13px;
       color: #8B8B8B;
-
-      span {
+      span{
         padding-left: 16px;
       }
     }
-
-    &-right {
+    &-right{
       font-family: var(--fontRegular);
       font-weight: 400;
       font-size: 14px;
@@ -367,8 +389,31 @@ export default {
     }
   }
 
-  .generalRight {
-    width: 520px;
+  .generalRight{
+    width:520px;
+
+    &-top {
+      width: 530px;
+      height: 110px;
+      background: #D2DBEC;
+      border-radius: 4px 4px 0px 0px;
+
+      &-top {
+        font-family: var(--fontMedium);
+        font-weight: 500;
+        font-size: 20px;
+        color: #4E5969;
+        margin-bottom: 16px;
+      }
+
+      &-bom {
+        font-family: var(--fontRegular);
+        font-weight: 400;
+        font-size: 16px;
+        color: #4E5969;
+      }
+    }
+
   }
 }
 

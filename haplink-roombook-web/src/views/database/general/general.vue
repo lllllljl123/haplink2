@@ -207,7 +207,21 @@
         </el-button>
       </div>
     </el-dialog>
-    <GeneralDialog :open="generalDialogVisibleForGeneralDialog" :title="generalDialogTitle" @cancel="generalcancel"></GeneralDialog>
+    <div>
+      <GeneralDialog
+        :generalDialogVisible.sync="generalDialogVisible"
+        :generalDialogTitle="generalDialogTitle"
+        :generalLeftTable="generalLeftTable"
+        :currentOrgId="currentOrgId"
+        :filteredGeneralRightTable="filteredGeneralRightTable"
+        @clear-filters-3="clearFilters3"
+        @search-right-table="searchRightTable"
+        @delete-selected="handleDeleteSelected"
+        @general-submit="handleGeneralSubmit"
+        @cancel="cancel"
+        @handle-General-Dialog-Close="handleGeneralDialogClose"
+      />
+    </div>
 
     <el-dialog
       title="确认删除"
@@ -224,8 +238,7 @@
 
 <script>
 import { ListTab, ListTable, deleteItem, insertItem, updateItem, getItemByOrgId, batchInsert} from '@/api/database/general'; // 引入你的接口函数
-
-const GeneralDialog = () => import("./components/generalDialog.vue")
+import GeneralDialog from '@/views/database/general/components/generalDialog.vue';
 
 export default {
   components: {
@@ -272,12 +285,19 @@ export default {
       searchDate: [],
       publishStatus: '',
       batchDeleteDialogVisible: false, // 控制批量删除确认对话框的显示
-      generalDialogVisibleForGeneralDialog: false,
+      generalDialogVisible: false,
       generalDialogTitle: '',
       generalLeftSearch: '',
       generalRightSearch: '',
+      currentOrgId:"",
     };
   },
+  computed: {
+    dialogTitle() {
+      return this.dialogMode;
+    },
+  },
+
   methods: {
     // 调整组织架构列表高度
     updateContainerHeight(index) {
@@ -405,7 +425,7 @@ export default {
               editMode: item.editMode || '编辑'
             })).sort((a, b) => a.id - b.id);
             this.total = response.total;
-            if (this.generalDialogVisibleForGeneralDialog) {
+            if (this.generalDialogVisible) {
               this.generalLeftTable = response.rows; // 如果通用弹窗已打开，将数据赋值到generalLeftTable
             }
           } else {
@@ -640,7 +660,7 @@ export default {
       }
 
       this.generalDialogTitle = this.getGeneralTitle();
-      this.generalDialogVisibleForGeneralDialog = true;
+      this.generalDialogVisible = true;
     },
 
     //判断通用按钮是否出现
@@ -684,14 +704,137 @@ export default {
       });
     },
 
+    //通用dialog左表格的清空条件
+    clearFilters2() {
+      this.generalLeftSearch = '';
+      this.handleGetItemByOrgId();
+    },
 
+    //通用框中将通用层数据复制给预选框
+    handleCopy2() {
+      const selectedItems = this.generalLeftTable.filter(item => item.selected);
 
+      selectedItems.forEach(item => {
+        const alreadyInRightTable = this.generalRightTable.some(rightItem => {
+          return rightItem.content === item.content && rightItem.thickness === item.thickness;
+        });
 
+        if (!alreadyInRightTable) {
+          this.generalRightTable.push({
+            ...item,
+            id: Date.now() + Math.random(),  // 确保新添加的行有唯一的ID
+          });
+        }
 
+        // 将左表的该项设为不可选择
+        item.disabled = true;
+        item.selected = false; // 清除选中状态
+      });
 
+      this.filteredGeneralRightTable = [...this.generalRightTable];
 
+      // 清除右表格中项的选中状态
+      this.generalRightTable.forEach(item => {
+        item.selected = false;
+      });
 
+      // 更新左表格中的选项状态
+      this.updateLeftTableSelection();
+    },
 
+    //通用dialog左表格数据
+    handleGetItemByOrgId() {
+      const params = {
+        orgId: this.currentOrgId,
+        search: this.generalLeftSearch
+      };
+
+      getItemByOrgId(params)
+        .then(response => {
+          if (response.code === 200) {
+            this.generalLeftTable = response.rows;
+            this.updateLeftTableSelection();
+          } else {
+            this.$message.error('获取数据失败');
+          }
+        })
+        .catch(error => {
+          console.error('请求失败:', error);
+          this.$message.error('请求失败');
+        });
+    },
+
+    //通用右表格搜索
+    searchRightTable() {
+      const keyword = this.generalRightSearch.trim().toLowerCase(); // 获取搜索关键词并转为小写
+      if (keyword) {
+        this.filteredGeneralRightTable = this.generalRightTable.filter(item => {
+          // 根据关键词匹配内容和厚度
+          return item.content.toLowerCase().includes(keyword) || item.thickness.toString().includes(keyword);
+        });
+      } else {
+        this.filteredGeneralRightTable = [...this.generalRightTable]; // 如果没有关键词，显示所有数据
+      }
+    },
+
+    //清空右表格搜索关键字
+    clearFilters3() {
+      this.generalRightSearch = '';
+      this.filteredGeneralRightTable = [...this.generalRightTable]; // 恢复原始数据
+      this.$forceUpdate();
+    },
+
+    //删除右表格选中数据
+    handleDeleteSelected() {
+      this.generalRightTable = this.generalRightTable.filter(item => !item.selected);
+      this.filteredGeneralRightTable = [...this.generalRightTable];      // 同步 filteredGeneralRightTable
+      this.updateLeftTableSelection();
+    },
+
+    //通用确认提交
+    handleGeneralSubmit() {
+      const params = {
+        orgId: this.currentOrgId,
+        libraries: this.filteredGeneralRightTable.map(item => ({
+          content: item.content,
+          thickness: item.thickness
+        }))
+      };
+      batchInsert(params)
+        .then(response => {
+          if (response.code === 200) {
+            this.$message.success('新增成功');
+
+            // 在提交成功后，遍历 filteredGeneralRightTable 赋值 editMode
+            this.filteredGeneralRightTable.forEach(item => {
+              item.editMode = '编辑母版'; // 此处条件检查逻辑是否正确
+              console.log("Updated item:", item);
+            });
+
+            this.fetchSubTabData(this.getCurrentOrgId());  // 刷新数据
+
+            // 清空右表格
+            this.generalRightTable = [];
+            this.filteredGeneralRightTable = [];
+
+            this.generalLeftTable = [];
+
+            this.generalDialogVisible = false;
+          } else {
+            this.$message.error('新增失败: ' + response.message);
+          }
+        });
+    },
+
+    //用右上角×关闭通用dialog
+    handleGeneralDialogClose(done) {
+      this.generalRightTable = [];
+      this.filteredGeneralRightTable = [];
+      this.generalLeftTable = [];
+      this.handleGetItemByOrgId();
+      this.generalDialogVisible = false;
+      done();
+    },
 
 
     mouseupTxt() {
@@ -763,10 +906,6 @@ export default {
       console.log("Cancel");
       this.dialogVisible = false;
     },
-
-    generalcancel(){
-      this.generalDialogVisibleForGeneralDialog = false;
-    }
   },
 
   mounted() {
@@ -796,8 +935,8 @@ export default {
   display: flex;
   flex-wrap: wrap; /* 使tab自动换行 */
   padding-left: 32px;
-  padding-bottom: 0px;
-  padding-right: 80px;
+  padding-bottom:0px;
+  padding-right:80px;
 }
 
 .custom-tabs ::v-deep .el-tabs__nav {
@@ -908,19 +1047,19 @@ export default {
   margin-left: 24px;
   font-size: 14px;
   text-align: center;
-  padding: 0px;
+  padding:0px;
 }
 
-.general_button {
-  width: 72px;
-  height: 32px;
-  background: #C9952D;
+.general_button{
+  width:72px;
+  height:32px;
+  background:#C9952D;
   border-radius: 4px;
   margin-top: 16px;
   margin-left: 16px;
   font-size: 14px;
   text-align: center;
-  padding: 0px;
+  padding:0px;
 }
 
 .delete_button {
@@ -946,7 +1085,7 @@ export default {
   border-radius: 0px;
   margin-top: 16px;
   margin-left: 16px;
-  padding: 0px
+  padding:0px
 }
 
 .modify {
@@ -963,8 +1102,8 @@ export default {
   margin-top: 16px;
   margin-left: 16px;
   padding-left: 2px;
-  padding-top: 0px;
-  padding-bottom: 0px;
+  padding-top:0px;
+  padding-bottom:0px;
 }
 
 .clear {
@@ -1022,28 +1161,28 @@ export default {
 
 .dialog1 >>> .el-dialog__header {
   height: 40px;
-  padding: 0px;
+  padding:0px;
 }
 
 .dialog1 >>> .el-dialog__body {
   height: 360px;
-  padding: 0px;
+  padding:0px;
 }
 
 .dialog1 >>> .dialog-footer {
-  margin-bottom: 12px;
-  margin-right: 35px;
+  margin-bottom:12px;
+  margin-right:35px;
   height: 32px;
-  padding: 0px;
+  padding:0px;
 }
 
 .dialog1 >>> .el-dialog__footer {
   height: 56px;
-  padding: 0px;
-  margin: 0px;
+  padding:0px;
+  margin:0px;
 }
 
-.custom-dialog-title {
+.custom-dialog-title{
   width: 40px;
   height: 24px;
   //font-family: OPlusSans 3.0, OPlusSans 30;
@@ -1054,28 +1193,28 @@ export default {
   text-align: left;
   font-style: normal;
   text-transform: none;
-  margin-top: 8px;
-  margin-left: 48px;
+  margin-top:8px;
+  margin-left:48px;
 }
 
 
-.type {
+.type{
   width: 28px;
   height: 16px;
-  margin-left: 36px;
-  margin-top: 47px;
+  margin-left:36px;
+  margin-top:47px;
 }
 
-.type_chosen {
+.type_chosen{
   width: 137px;
   height: 32px;
-  margin-left: 66px;
-  margin-top: 39px;
+  margin-left:66px;
+  margin-top:39px;
   background: #FFFFFF;
   border-radius: 0px 0px 0px 0px;
 }
 
-.depth {
+.depth{
   width: 56px;
   height: 16px;
   //font-family: OPlusSans 3.0, OPlusSans 30;
@@ -1086,27 +1225,27 @@ export default {
   text-align: left;
   font-style: normal;
   text-transform: none;
-  margin-top: 47px;
-  margin-left: 32px;
+  margin-top:47px;
+  margin-left:32px;
 }
 
-.input-depth {
+.input-depth{
   width: 123px;
   height: 32px;
   border-radius: 0px 0px 0px 0px;
-  padding: 0px;
-  margin-top: 39px;
-  margin-left: 38px;
+  padding:0px;
+  margin-top:39px;
+  margin-left:38px;
 }
 
-.content {
-  width: 28px;
-  height: 16px;
-  margin-left: 36px;
-  margin-top: 32px;
+.content{
+  width:28px;
+  height:16px;
+  margin-left:36px;
+  margin-top:32px;
 }
 
-.input-hint {
+.input-hint{
   width: 374px;
   height: 12px;
   //font-family: OPlusSans 3.0, OPlusSans 30;
@@ -1117,42 +1256,42 @@ export default {
   text-align: left;
   font-style: normal;
   text-transform: none;
-  margin-left: 130px;
-  margin-top: 20px;
+  margin-left:130px;
+  margin-top:20px;
 }
 
-.box1 {
-  width: 350px;
-  height: 117px;
+.box1{
+  width:350px;
+  height:117px;
   background: #FFFFFF;
   border-radius: 4px 4px 4px 4px;
   border: 1px solid #D2DBEC;
-  margin-left: 130px;
-  margin-top: 4px;
+  margin-left:130px;
+  margin-top:4px;
 }
 
-.transfer_button {
-  width: 12px;
-  height: 12px;
-  padding: 0px;
-  border: 0px;
-  margin-left: 15px;
-  margin-top: 4px;
+.transfer_button{
+  width:12px;
+  height:12px;
+  padding:0px;
+  border:0px;
+  margin-left:15px;
+  margin-top:4px;
 }
 
-.custom-textarea >>> .el-input__inner {
+.custom-textarea >>>.el-input__inner{
   width: 330px;
   height: 76px;
-  margin-left: 10px;
-  margin-top: 8px;
+  margin-left:10px;
+  margin-top:8px;
   padding: 0px;
 }
 
-.preview {
+.preview{
   width: 28px;
   height: 16px;
-  margin-left: 36px;
-  margin-top: 32px;
+  margin-left:36px;
+  margin-top:32px;
 }
 
 .cancel1 {
@@ -1185,10 +1324,10 @@ export default {
   text-align: center;
 }
 
-.tag {
+.tag{
   border-radius: 4px 4px 4px 4px;
   border: 1px solid #5E8CD5;
-  background: #F8F8F9;
+  background:#F8F8F9;
   font-family: PingFang SC, PingFang SC;
   font-weight: 500;
   font-size: 14px;
